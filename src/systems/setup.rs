@@ -96,6 +96,38 @@ pub fn spawn_initial_predators(
     commands.spawn_batch(predators);
 }
 
+pub fn spawn_initial_lakes(
+    mut commands: Commands,
+    config: Res<SimConfig>,
+) {
+    let mut rng = thread_rng();
+    let half = config.world_half_size;
+    let radius = config.lake_radius;
+
+    // 简单避免湖泊重叠：随机生成位置，如果与已有湖泊太近则重试。
+    let mut centers = Vec::with_capacity(config.lake_count);
+    let min_dist = radius * 2.5;
+    let max_attempts = 100;
+
+    for _ in 0..config.lake_count {
+        for _ in 0..max_attempts {
+            let candidate = random_pos(&mut rng, half - Vec2::splat(radius));
+            let too_close = centers.iter().any(|c: &Vec2| c.distance(candidate) < min_dist);
+            if !too_close {
+                centers.push(candidate);
+                break;
+            }
+        }
+    }
+
+    for center in centers {
+        commands.spawn((
+            Lake,
+            Position(center),
+        ));
+    }
+}
+
 fn random_pos(rng: &mut impl Rng, half: Vec2) -> Vec2 {
     Vec2::new(
         rng.gen_range(-half.x..half.x),

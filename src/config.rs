@@ -294,6 +294,55 @@ pub struct SimConfig {
     ///
     /// 默认值 90.0。
     pub predator_reproduction_threshold: f32,
+
+    // =========================================================================
+    // 湖泊障碍参数
+    // =========================================================================
+
+    /// 湖泊数量。
+    ///
+    /// 湖泊是圆形障碍区域，生物可以跳进去躲避捕食者追踪，
+    /// 但在湖中停留过久会淹死。
+    ///
+    /// - 调大：更多安全避难所，生物生存率提高
+    /// - 调小：避难所少，捕食者更容易得手
+    ///
+    /// 默认值 6。
+    pub lake_count: usize,
+
+    /// 湖泊半径，单位：世界单位。
+    ///
+    /// 单个湖泊的大小。较大的湖泊能容纳更多生物，也会占据更多世界空间。
+    ///
+    /// 默认值 120.0。
+    pub lake_radius: f32,
+
+    /// 生物在湖泊中最多能停留的时间，单位：秒。
+    ///
+    /// 超过这个时间后生物会淹死。这迫使生物必须尽快离开湖泊回到陆地。
+    ///
+    /// - 调大：避难时间更长，生物更安全
+    /// - 调小：湖泊更危险，只能短暂躲避
+    ///
+    /// 默认值 3.0 秒。
+    pub lake_max_time: f32,
+
+    /// 湖泊中的能量消耗倍数。
+    ///
+    /// 生物在湖泊中每 tick 扣除的能量 = metabolism_rate * lake_energy_cost_multiplier。
+    /// 默认值 2.0 表示湖中消耗是陆地的 2 倍。
+    ///
+    /// - 调大：湖泊代价更高，生物不愿久留
+    /// - 调小：湖泊几乎无代价，会变成永久安全区
+    pub lake_energy_cost_multiplier: f32,
+
+    /// 生物感知湖泊并主动逃向湖泊的半径，单位：世界单位。
+    ///
+    /// 当生物在逃跑时发现附近有湖泊，会优先朝湖泊移动。
+    /// 设为 0 则关闭主动逃向湖泊的行为。
+    ///
+    /// 默认值 200.0。
+    pub lake_flee_attraction_radius: f32,
 }
 
 impl Default for SimConfig {
@@ -342,6 +391,13 @@ impl Default for SimConfig {
             predator_metabolism_rate: 1.0,
             predator_energy_gain: 60.0,
             predator_reproduction_threshold: 90.0,
+
+            // 湖泊障碍
+            lake_count: 6,
+            lake_radius: 120.0,
+            lake_max_time: 3.0,
+            lake_energy_cost_multiplier: 2.0,
+            lake_flee_attraction_radius: 200.0,
         }
     }
 }

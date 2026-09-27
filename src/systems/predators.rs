@@ -11,7 +11,7 @@ pub fn predator_behavior(
     config: Res<SimConfig>,
     grid: Res<SpatialGrid>,
     mut predators: Query<(Entity, &Position, &mut Velocity, &mut Energy, &mut Age), With<Predator>>,
-    creatures: Query<(Entity, &Position), With<Creature>>,
+    creatures: Query<(Entity, &Position, Option<&InLake>), With<Creature>>,
     mut deaths: EventWriter<DeathEvent>,
     mut spawns: EventWriter<SpawnPredator>,
 ) {
@@ -42,7 +42,11 @@ pub fn predator_behavior(
             if entity == predator_entity || killed_this_tick.contains(&entity) {
                 continue;
             }
-            if let Ok((creature_entity, creature_pos)) = creatures.get(entity) {
+            if let Ok((creature_entity, creature_pos, in_lake)) = creatures.get(entity) {
+                // 猎物在湖泊中时捕食者无法追踪/捕食。
+                if in_lake.is_some() {
+                    continue;
+                }
                 let dist = pos.0.distance(creature_pos.0);
                 if dist <= config.predator_perception_radius {
                     match nearest {

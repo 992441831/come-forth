@@ -7,6 +7,7 @@ pub mod behavior;
 pub mod charts;
 pub mod food;
 pub mod input;
+pub mod lakes;
 pub mod life;
 pub mod movement;
 pub mod predators;
@@ -17,6 +18,7 @@ use behavior::*;
 use charts::*;
 use food::*;
 use input::*;
+use lakes::*;
 use life::*;
 use movement::*;
 use predators::*;
@@ -41,16 +43,19 @@ impl Plugin for SimPlugin {
                 spawn_initial_creatures,
                 spawn_initial_food,
                 spawn_initial_predators,
+                spawn_initial_lakes,
                 setup_ui,
             ).chain())
             .add_systems(FixedUpdate, (
                 update_spatial_grid,
                 gather_behavior_data,
                 apply_behavior,
+                apply_lake_transitions,
                 resolve_movement,
                 predator_behavior,
                 consume_food,
                 energy_metabolism,
+                update_lake_state,
                 age_creatures,
                 reproduce,
                 handle_deaths,
@@ -63,6 +68,7 @@ impl Plugin for SimPlugin {
             .add_systems(Update, (
                 camera_zoom_pan,
                 sample_population,
+                render_lakes,
                 render_creatures,
                 render_food,
                 render_predators,

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::components::{CommunicationBuffer, Creature, Energy, Fleeing, Food, Position, Predator, SimTick, Species};
+use crate::components::{CommunicationBuffer, Creature, Energy, Fleeing, Food, InLake, Lake, Position, Predator, SimTick, Species};
+use crate::config::SimConfig;
 
 pub fn setup_ui(mut commands: Commands) {
     commands.spawn(
@@ -23,7 +24,7 @@ pub fn setup_ui(mut commands: Commands) {
 
 pub fn render_creatures(
     mut gizmos: Gizmos,
-    creatures: Query<(&Position, &Species, &Energy, &CommunicationBuffer, Option<&Fleeing>), With<Creature>>,
+    creatures: Query<(&Position, &Species, &Energy, &CommunicationBuffer, Option<&Fleeing>, Option<&InLake>), With<Creature>>,
     camera_query: Query<(&Camera, &GlobalTransform, &OrthographicProjection)>,
 ) {
     let Ok((_camera, camera_transform, projection)) = camera_query.get_single() else {
@@ -37,7 +38,7 @@ pub fn render_creatures(
     let min = camera_pos - half_size - Vec2::splat(margin);
     let max = camera_pos + half_size + Vec2::splat(margin);
 
-    for (pos, species, energy, buffer, fleeing) in creatures.iter() {
+    for (pos, species, energy, buffer, fleeing, in_lake) in creatures.iter() {
         // 跳过屏幕外的生物，大幅减少 GPU 绘制压力。
         if pos.0.x < min.x || pos.0.x > max.x || pos.0.y < min.y || pos.0.y > max.y {
             continue;
@@ -47,13 +48,44 @@ pub fn render_creatures(
         let base = species.color.to_srgba();
 
         // 逃跑中的生物用白色高亮显示，让“恐慌波”肉眼可见。
+        // 在湖泊中的生物用蓝色调显示，便于观察避难行为。
         let color = if fleeing.is_some() {
             Color::srgba(1.0, 1.0, 1.0, 0.95)
+        } else if in_lake.is_some() {
+            Color::srgba(base.red * 0.5, base.green * 0.5 + 0.3, base.blue * 0.5 + 0.5, 0.9)
         } else {
             let alpha = if buffer.last_message.is_some() { 1.0 } else { 0.65 };
             Color::srgba(base.red, base.green, base.blue, alpha)
         };
         gizmos.circle_2d(pos.0, radius, color);
+    }
+}
+
+pub fn render_lakes(
+    mut gizmos: Gizmos,
+    lakes: Query<&Position, With<Lake>>,
+    camera_query: Query<(&Camera, &GlobalTransform, &OrthographicProjection)>,
+    config: Res<SimConfig>,
+) {
+    let Ok((_camera, camera_transform, projection)) = camera_query.get_single() else {
+        return;
+    };
+
+    let camera_pos = camera_transform.translation().xy();
+    let half_size = Vec2::new(projection.area.width(), projection.area.height()) * 0.5;
+    let margin = config.lake_radius;
+    let min = camera_pos - half_size - Vec2::splat(margin);
+    let max = camera_pos + half_size + Vec2::splat(margin);
+
+    for pos in lakes.iter() {
+        // 跳过屏幕外的湖泊。
+        if pos.0.x < min.x || pos.0.x > max.x || pos.0.y < min.y || pos.0.y > max.y {
+            continue;
+        }
+
+        // 湖泊：半透明蓝色圆形区域 + 边界线。
+        gizmos.circle_2d(pos.0, config.lake_radius, Color::srgba(0.15, 0.45, 0.85, 0.25));
+        gizmos.circle_2d(pos.0, config.lake_radius, Color::srgba(0.3, 0.6, 0.95, 0.4));
     }
 }
 

@@ -24,6 +24,7 @@ pub fn gather_behavior_data(
     >,
     foods: Query<&Position, With<Food>>,
     predators: Query<&Position, With<Predator>>,
+    lakes: Query<&Position, With<Lake>>,
     neighbors: Query<(&Position, &Species), With<Creature>>,
     mut intents: EventWriter<BehaviorIntent>,
     mut comm_events: EventWriter<CommunicationEvent>,
@@ -64,6 +65,11 @@ pub fn gather_behavior_data(
 
         if is_fleeing {
             desired += flee_dir * config.flee_strength;
+
+            // Rule 0b: when fleeing, actively seek the nearest lake as refuge.
+            if let Some(lake_dir) = find_nearest_lake(&lakes, pos.0, config.lake_flee_attraction_radius) {
+                desired += lake_dir * config.seek_strength * 0.8;
+            }
         }
 
         // Rule 1: hungry creatures seek food.
@@ -190,4 +196,24 @@ fn find_nearest_food(
         let food_pos = foods.get(entity).unwrap().0;
         (food_pos - pos).normalize_or_zero()
     })
+}
+
+fn find_nearest_lake(
+    lakes: &Query<&Position, With<Lake>>,
+    pos: Vec2,
+    radius: f32,
+) -> Option<Vec2> {
+    let radius_sq = radius * radius;
+    let mut nearest: Option<Vec2> = None;
+    let mut nearest_dist_sq = f32::MAX;
+
+    for lake_pos in lakes.iter() {
+        let dist_sq = pos.distance_squared(lake_pos.0);
+        if dist_sq <= radius_sq && dist_sq < nearest_dist_sq {
+            nearest_dist_sq = dist_sq;
+            nearest = Some(lake_pos.0);
+        }
+    }
+
+    nearest.map(|lake_pos| (lake_pos - pos).normalize_or_zero())
 }

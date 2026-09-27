@@ -48,6 +48,17 @@ pub struct Predator;
 #[derive(Component)]
 pub struct Fleeing;
 
+/// Marker for lake entities.
+#[derive(Component)]
+pub struct Lake;
+
+/// Tracks how much longer a creature can stay inside a lake before drowning.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct InLake {
+    /// Remaining safe time in the lake, in seconds.
+    pub time_remaining: f32,
+}
+
 /// 2D position in world space.
 #[derive(Component, Clone, Copy)]
 pub struct Position(pub Vec2);
@@ -131,6 +142,7 @@ pub enum DeathReason {
     Starvation,
     OldAge,
     Predation,
+    Drowning,
 }
 
 /// Event: creature A wants to tell creature B about food.
