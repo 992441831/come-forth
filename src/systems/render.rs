@@ -24,8 +24,25 @@ pub fn setup_ui(mut commands: Commands) {
 pub fn render_creatures(
     mut gizmos: Gizmos,
     creatures: Query<(&Position, &Species, &Energy, &CommunicationBuffer), With<Creature>>,
+    camera_query: Query<(&Camera, &GlobalTransform, &OrthographicProjection)>,
 ) {
+    let Ok((_camera, camera_transform, projection)) = camera_query.get_single() else {
+        return;
+    };
+
+    // 计算当前相机视野的包围盒，额外留出一点边距避免物体在边缘突然消失。
+    let camera_pos = camera_transform.translation().xy();
+    let half_size = Vec2::new(projection.area.width(), projection.area.height()) * 0.5;
+    let margin = 10.0;
+    let min = camera_pos - half_size - Vec2::splat(margin);
+    let max = camera_pos + half_size + Vec2::splat(margin);
+
     for (pos, species, energy, buffer) in creatures.iter() {
+        // 跳过屏幕外的生物，大幅减少 GPU 绘制压力。
+        if pos.0.x < min.x || pos.0.x > max.x || pos.0.y < min.y || pos.0.y > max.y {
+            continue;
+        }
+
         let radius = 2.5 + (energy.current / energy.max) * 2.5;
         let alpha = if buffer.last_message.is_some() { 1.0 } else { 0.65 };
         let base = species.color.to_srgba();
@@ -34,11 +51,32 @@ pub fn render_creatures(
     }
 }
 
+fn compute_view_bounds(
+    camera_transform: &GlobalTransform,
+    projection: &OrthographicProjection,
+    margin: f32,
+) -> (Vec2, Vec2) {
+    let camera_pos = camera_transform.translation().xy();
+    let half_size = Vec2::new(projection.area.width(), projection.area.height()) * 0.5;
+    let min = camera_pos - half_size - Vec2::splat(margin);
+    let max = camera_pos + half_size + Vec2::splat(margin);
+    (min, max)
+}
+
 pub fn render_food(
     mut gizmos: Gizmos,
     food: Query<&Position, With<Food>>,
+    camera_query: Query<(&Camera, &GlobalTransform, &OrthographicProjection)>,
 ) {
+    let Ok((_, camera_transform, projection)) = camera_query.get_single() else {
+        return;
+    };
+    let (min, max) = compute_view_bounds(camera_transform, projection, 10.0);
+
     for pos in food.iter() {
+        if pos.0.x < min.x || pos.0.x > max.x || pos.0.y < min.y || pos.0.y > max.y {
+            continue;
+        }
         gizmos.rect_2d(pos.0, 0.0, Vec2::splat(4.0), Color::srgb(0.2, 0.85, 0.25));
     }
 }
@@ -46,8 +84,18 @@ pub fn render_food(
 pub fn render_predators(
     mut gizmos: Gizmos,
     predators: Query<&Position, With<Predator>>,
+    camera_query: Query<(&Camera, &GlobalTransform, &OrthographicProjection)>,
 ) {
+    let Ok((_, camera_transform, projection)) = camera_query.get_single() else {
+        return;
+    };
+    let (min, max) = compute_view_bounds(camera_transform, projection, 10.0);
+
     for pos in predators.iter() {
+        if pos.0.x < min.x || pos.0.x > max.x || pos.0.y < min.y || pos.0.y > max.y {
+            continue;
+        }
+
         // 捕食者用红色三角形象征，比生物大一些，便于识别。
         let size = 7.0;
         let p1 = pos.0 + Vec2::new(0.0, size);

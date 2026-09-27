@@ -26,7 +26,8 @@ pub struct SimConfig {
     /// 初始能量（30～80）、寿命（1500～2500 tick）和繁殖冷却。
     ///
     /// 注意：这个值可能高于环境长期承载力，开局后种群会自然回落到稳态。
-    /// 如果想减轻首帧压力或提高帧率，可以适当降低，例如 5000。
+    /// 生物数量直接影响首帧压力和每帧渲染开销，过多会导致启动卡顿。
+    /// 默认值 5000 是在视觉效果和性能之间的折中。
     pub creature_count: usize,
 
     /// 初始食物粒子数量。
@@ -280,7 +281,8 @@ impl Default for SimConfig {
             world_half_size: Vec2::new(1200.0, 800.0),
 
             // 初始种群规模
-            creature_count: 10_000,
+            // 10000 在首帧会给 CPU/GPU 带来较大压力，5000 仍能保持涌现效果且更流畅
+            creature_count: 5_000,
             food_count: 1_500,
             predator_count: 20,
 
@@ -313,7 +315,7 @@ impl Default for SimConfig {
             // 捕食者相关
             predator_speed: 7.5,
             predator_perception_radius: 120.0,
-            predator_metabolism_rate: 0.25,
+            predator_metabolism_rate: 0.5,
             predator_energy_gain: 60.0,
             predator_reproduction_threshold: 90.0,
         }
