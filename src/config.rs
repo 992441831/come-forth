@@ -102,6 +102,37 @@ pub struct SimConfig {
     /// 每个物种拥有独立的颜色，并且只在同种之间通讯。
     /// 颜色循环为：红 → 蓝 → 黄 → 绿。
     pub species_count: u8,
+
+    /// 初始捕食者数量。
+    ///
+    /// 捕食者会追逐并吃掉普通生物，自身也需要能量维持生存。
+    /// 它们不参与同族通讯，是食物链顶层的独立角色。
+    pub predator_count: usize,
+
+    /// 捕食者最大移动速度。
+    ///
+    /// 通常应略高于普通生物，否则永远追不上猎物。
+    pub predator_speed: f32,
+
+    /// 捕食者感知半径。
+    ///
+    /// 捕食者只在这个范围内探测普通生物并发起追击。
+    pub predator_perception_radius: f32,
+
+    /// 捕食者每 tick 代谢消耗的能量。
+    ///
+    /// 数值越大，捕食者越容易饿死，对猎物种群压力越小。
+    pub predator_metabolism_rate: f32,
+
+    /// 捕食者吃掉一只生物后获得的能量。
+    ///
+    /// 这是捕食者主要的能量来源。
+    pub predator_energy_gain: f32,
+
+    /// 捕食者繁殖所需的最低能量。
+    ///
+    /// 能量充足时捕食者会产生后代，维持捕食者种群。
+    pub predator_reproduction_threshold: f32,
 }
 
 impl Default for SimConfig {
@@ -139,6 +170,14 @@ impl Default for SimConfig {
 
             // 物种数量
             species_count: 3,
+
+            // 捕食者相关
+            predator_count: 20,
+            predator_speed: 7.5,
+            predator_perception_radius: 120.0,
+            predator_metabolism_rate: 0.25,
+            predator_energy_gain: 60.0,
+            predator_reproduction_threshold: 90.0,
         }
     }
 }
@@ -151,6 +190,9 @@ impl SimConfig {
     /// 从而保证邻居查询的正确性。
     /// 这里取最大半径的 1.5 倍，兼顾查询效率与正确性。
     pub fn cell_size(&self) -> f32 {
-        self.perception_radius.max(self.communication_radius) * 1.5
+        self.perception_radius
+            .max(self.communication_radius)
+            .max(self.predator_perception_radius)
+            * 1.5
     }
 }

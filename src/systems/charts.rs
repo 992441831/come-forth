@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::VecDeque;
 
-use crate::components::{ChartUpdateTimer, Creature, Food, PopulationHistory};
+use crate::components::{ChartUpdateTimer, Creature, Food, PopulationHistory, Predator};
 use crate::config::SimConfig;
 
 /// 折线图在屏幕上的尺寸与边距，单位：像素。
@@ -16,7 +16,7 @@ const MAX_SECONDS: usize = 60;
 
 /// 初始化历史数据与采样定时器。
 ///
-/// 为了让折线图一启动就能看到初始配置对应的数量（1500 食物、10000 生物），
+/// 为了让折线图一启动就能看到初始配置对应的数量（10000 生物、1500 食物、若干捕食者），
 /// 先用配置值预先填充第一个数据点，后续再按每秒一次采样更新。
 pub fn setup_history(mut commands: Commands, config: Res<SimConfig>) {
     let mut history = PopulationHistory::default();
@@ -24,6 +24,9 @@ pub fn setup_history(mut commands: Commands, config: Res<SimConfig>) {
         .creature_counts
         .push_back(config.creature_count as f32);
     history.food_counts.push_back(config.food_count as f32);
+    history
+        .predator_counts
+        .push_back(config.predator_count as f32);
 
     commands.insert_resource(history);
     commands.insert_resource(ChartUpdateTimer {
@@ -35,6 +38,7 @@ pub fn setup_history(mut commands: Commands, config: Res<SimConfig>) {
 pub fn sample_population(
     creatures: Query<(), With<Creature>>,
     food: Query<(), With<Food>>,
+    predators: Query<(), With<Predator>>,
     mut history: ResMut<PopulationHistory>,
     mut timer: ResMut<ChartUpdateTimer>,
     time: Res<Time>,
@@ -49,6 +53,9 @@ pub fn sample_population(
         .creature_counts
         .push_back(creatures.iter().count() as f32);
     history.food_counts.push_back(food.iter().count() as f32);
+    history
+        .predator_counts
+        .push_back(predators.iter().count() as f32);
 
     while history.creature_counts.len() > MAX_SECONDS {
         history.creature_counts.pop_front();
@@ -56,13 +63,17 @@ pub fn sample_population(
     while history.food_counts.len() > MAX_SECONDS {
         history.food_counts.pop_front();
     }
+    while history.predator_counts.len() > MAX_SECONDS {
+        history.predator_counts.pop_front();
+    }
 }
 
-/// 在屏幕右上角绘制生物数量与食物数量的折线图。
+/// 在屏幕右上角绘制生物数量、食物数量与捕食者数量的折线图。
 ///
-/// 为了避免双 Y 轴（两个量纲差距过大），采用上下两个独立的小折线图：
+/// 为了避免双 Y 轴（不同量纲差距过大），采用三个上下堆叠的独立小折线图：
 /// - 上方：生物数量（蓝色）
-/// - 下方：食物数量（绿色）
+/// - 中间：食物数量（绿色）
+/// - 下方：捕食者数量（红色）
 ///
 /// 每个小图使用自己的历史最大值作为上限，从而清晰展示相对波动。
 ///
@@ -118,6 +129,16 @@ pub fn render_population_chart(
         "Food",
         Color::srgb(0.35, 0.85, 0.45),
         &history.food_counts,
+    );
+
+    let predator_bottom_left = bottom_left - Vec2::new(0.0, chart_size.y + gap.y);
+    draw_mini_chart(
+        &mut gizmos,
+        predator_bottom_left,
+        chart_size,
+        "Predators",
+        Color::srgb(0.95, 0.25, 0.25),
+        &history.predator_counts,
     );
 }
 

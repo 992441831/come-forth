@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use crate::components::{Creature, Food, Position};
+use crate::components::{Creature, Food, Position, Predator};
 use crate::config::SimConfig;
 
 /// Uniform grid acceleration structure for nearby-entity queries.
@@ -58,7 +58,7 @@ pub fn nearby_entities(
 pub fn update_spatial_grid(
     mut grid: ResMut<SpatialGrid>,
     config: Res<SimConfig>,
-    query: Query<(Entity, &Position), Or<(With<Creature>, With<Food>)>>,
+    query: Query<(Entity, &Position), Or<(With<Creature>, With<Food>, With<Predator>)>>,
 ) {
     grid.cell_size = config.cell_size();
     grid.clear();

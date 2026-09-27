@@ -20,6 +20,8 @@ pub struct PopulationHistory {
     pub creature_counts: VecDeque<f32>,
     /// 每个采样时刻的食物数量。
     pub food_counts: VecDeque<f32>,
+    /// 每个采样时刻的捕食者数量。
+    pub predator_counts: VecDeque<f32>,
 }
 
 /// 折线图数据采样定时器。
@@ -37,6 +39,10 @@ pub struct Creature;
 /// Marker for food particles.
 #[derive(Component)]
 pub struct Food;
+
+/// Marker for predators that hunt creatures.
+#[derive(Component)]
+pub struct Predator;
 
 /// 2D position in world space.
 #[derive(Component, Clone, Copy)]
@@ -96,13 +102,20 @@ pub struct SpawnCreature {
     pub energy: f32,
 }
 
+/// Event: request to spawn a new predator.
+#[derive(Event)]
+pub struct SpawnPredator {
+    pub pos: Vec2,
+    pub energy: f32,
+}
+
 /// Event: request to spawn a food particle.
 #[derive(Event)]
 pub struct SpawnFood {
     pub pos: Vec2,
 }
 
-/// Event: a creature should die.
+/// Event: an entity should die.
 #[derive(Event)]
 pub struct DeathEvent {
     pub entity: Entity,
@@ -113,6 +126,7 @@ pub struct DeathEvent {
 pub enum DeathReason {
     Starvation,
     OldAge,
+    Predation,
 }
 
 /// Event: creature A wants to tell creature B about food.

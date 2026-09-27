@@ -70,6 +70,32 @@ pub fn spawn_initial_food(
     commands.spawn_batch(food);
 }
 
+pub fn spawn_initial_predators(
+    mut commands: Commands,
+    config: Res<SimConfig>,
+) {
+    let mut rng = thread_rng();
+    let half = config.world_half_size;
+
+    let predators: Vec<_> = (0..config.predator_count)
+        .map(|_| (
+            Predator,
+            Position(random_pos(&mut rng, half)),
+            Velocity(random_direction(&mut rng) * config.predator_speed),
+            Energy {
+                current: rng.gen_range(60.0..100.0),
+                max: 100.0,
+            },
+            Age {
+                ticks: 0,
+                max_lifetime: rng.gen_range(2000..3500),
+            },
+        ))
+        .collect();
+
+    commands.spawn_batch(predators);
+}
+
 fn random_pos(rng: &mut impl Rng, half: Vec2) -> Vec2 {
     Vec2::new(
         rng.gen_range(-half.x..half.x),
