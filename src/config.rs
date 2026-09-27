@@ -187,6 +187,28 @@ pub struct SimConfig {
     /// 默认值 50.0。
     pub communication_radius: f32,
 
+    /// 普通生物察觉捕食者并逃跑的半径，单位：世界单位。
+    ///
+    /// 当生物在这个范围内发现捕食者时，会朝反方向逃跑。
+    /// 这是让“恐慌波”这种涌现现象直观可见的关键参数。
+    ///
+    /// - 调大：生物更早发现危险，更容易形成大面积逃跑潮
+    /// - 调小：捕食者更容易突袭成功，逃跑效果不明显
+    ///
+    /// 这个值也会影响空间网格的单元格大小。
+    /// 默认值 90.0。
+    pub predator_flee_radius: f32,
+
+    /// 普通生物逃跑时的转向力度。
+    ///
+    /// 数值越大，生物逃离捕食者时转向越激进。
+    ///
+    /// - 调大：逃跑更果断，恐慌波更明显
+    /// - 调小：逃跑更迟缓，捕食者更容易追上
+    ///
+    /// 默认值 0.8。
+    pub flee_strength: f32,
+
     /// 普通生物的物种数量。
     ///
     /// 每个物种拥有独立的颜色，并且只在同种之间通讯。
@@ -305,6 +327,8 @@ impl Default for SimConfig {
             wander_strength: 0.12,
             perception_radius: 70.0,
             communication_radius: 50.0,
+            predator_flee_radius: 90.0,
+            flee_strength: 0.8,
 
             // 普通生物物种数量
             species_count: 3,
@@ -315,7 +339,7 @@ impl Default for SimConfig {
             // 捕食者相关
             predator_speed: 7.5,
             predator_perception_radius: 120.0,
-            predator_metabolism_rate: 0.5,
+            predator_metabolism_rate: 1.0,
             predator_energy_gain: 60.0,
             predator_reproduction_threshold: 90.0,
         }
@@ -336,6 +360,7 @@ impl SimConfig {
         self.perception_radius
             .max(self.communication_radius)
             .max(self.predator_perception_radius)
+            .max(self.predator_flee_radius)
             * 1.5
     }
 }

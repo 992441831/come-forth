@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::components::{CommunicationBuffer, Creature, Energy, Food, Position, Predator, SimTick, Species};
+use crate::components::{CommunicationBuffer, Creature, Energy, Fleeing, Food, Position, Predator, SimTick, Species};
 
 pub fn setup_ui(mut commands: Commands) {
     commands.spawn(
@@ -23,7 +23,7 @@ pub fn setup_ui(mut commands: Commands) {
 
 pub fn render_creatures(
     mut gizmos: Gizmos,
-    creatures: Query<(&Position, &Species, &Energy, &CommunicationBuffer), With<Creature>>,
+    creatures: Query<(&Position, &Species, &Energy, &CommunicationBuffer, Option<&Fleeing>), With<Creature>>,
     camera_query: Query<(&Camera, &GlobalTransform, &OrthographicProjection)>,
 ) {
     let Ok((_camera, camera_transform, projection)) = camera_query.get_single() else {
@@ -37,16 +37,22 @@ pub fn render_creatures(
     let min = camera_pos - half_size - Vec2::splat(margin);
     let max = camera_pos + half_size + Vec2::splat(margin);
 
-    for (pos, species, energy, buffer) in creatures.iter() {
+    for (pos, species, energy, buffer, fleeing) in creatures.iter() {
         // 跳过屏幕外的生物，大幅减少 GPU 绘制压力。
         if pos.0.x < min.x || pos.0.x > max.x || pos.0.y < min.y || pos.0.y > max.y {
             continue;
         }
 
         let radius = 2.5 + (energy.current / energy.max) * 2.5;
-        let alpha = if buffer.last_message.is_some() { 1.0 } else { 0.65 };
         let base = species.color.to_srgba();
-        let color = Color::srgba(base.red, base.green, base.blue, alpha);
+
+        // 逃跑中的生物用白色高亮显示，让“恐慌波”肉眼可见。
+        let color = if fleeing.is_some() {
+            Color::srgba(1.0, 1.0, 1.0, 0.95)
+        } else {
+            let alpha = if buffer.last_message.is_some() { 1.0 } else { 0.65 };
+            Color::srgba(base.red, base.green, base.blue, alpha)
+        };
         gizmos.circle_2d(pos.0, radius, color);
     }
 }

@@ -44,6 +44,10 @@ pub struct Food;
 #[derive(Component)]
 pub struct Predator;
 
+/// Marker added to a creature when it detects a nearby predator and is fleeing.
+#[derive(Component)]
+pub struct Fleeing;
+
 /// 2D position in world space.
 #[derive(Component, Clone, Copy)]
 pub struct Position(pub Vec2);

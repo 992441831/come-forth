@@ -10,10 +10,11 @@ use crate::spatial::{nearby_entities, SpatialGrid};
 pub struct BehaviorIntent {
     pub entity: Entity,
     pub new_velocity: Vec2,
+    pub is_fleeing: bool,
 }
 
 /// Read-only pass over all creatures: find food, find same-species neighbors,
-/// decide steering, and emit both movement intents and communication events.
+/// detect predators, decide steering, and emit both movement intents and communication events.
 pub fn gather_behavior_data(
     config: Res<SimConfig>,
     grid: Res<SpatialGrid>,
@@ -22,6 +23,7 @@ pub fn gather_behavior_data(
         With<Creature>,
     >,
     foods: Query<&Position, With<Food>>,
+    predators: Query<&Position, With<Predator>>,
     neighbors: Query<(&Position, &Species), With<Creature>>,
     mut intents: EventWriter<BehaviorIntent>,
     mut comm_events: EventWriter<CommunicationEvent>,
@@ -35,9 +37,37 @@ pub fn gather_behavior_data(
 
         let mut desired = Vec2::ZERO;
         let mut known_food_dir: Option<Vec2> = None;
+        let mut is_fleeing = false;
+
+        // Rule 0: flee from nearby predators.
+        scratch.clear();
+        nearby_entities(&grid, pos.0, config.predator_flee_radius, &mut scratch);
+        let mut nearest_predator_dist_sq = f32::MAX;
+        let mut flee_dir = Vec2::ZERO;
+
+        for &other in scratch.iter() {
+            if other == entity {
+                continue;
+            }
+            if let Ok(predator_pos) = predators.get(other) {
+                let offset = pos.0 - predator_pos.0;
+                let dist_sq = offset.length_squared();
+                if dist_sq <= config.predator_flee_radius * config.predator_flee_radius
+                    && dist_sq < nearest_predator_dist_sq
+                {
+                    nearest_predator_dist_sq = dist_sq;
+                    flee_dir = offset.normalize_or_zero();
+                    is_fleeing = true;
+                }
+            }
+        }
+
+        if is_fleeing {
+            desired += flee_dir * config.flee_strength;
+        }
 
         // Rule 1: hungry creatures seek food.
-        if is_hungry {
+        if is_hungry && !is_fleeing {
             if let Some(food_dir) = find_nearest_food(&grid, &foods, pos.0, config.perception_radius, &mut scratch) {
                 desired += food_dir * config.seek_strength;
                 known_food_dir = Some(food_dir);
@@ -55,7 +85,7 @@ pub fn gather_behavior_data(
         }
 
         // Rule 3: communicate with same-species neighbors.
-        if is_hungry && known_food_dir.is_some() {
+        if is_hungry && known_food_dir.is_some() && !is_fleeing {
             let food_dir = known_food_dir.unwrap();
             scratch.clear();
             nearby_entities(&grid, pos.0, config.communication_radius, &mut scratch);
@@ -87,30 +117,42 @@ pub fn gather_behavior_data(
         desired += Vec2::new(wander_angle.cos(), wander_angle.sin()) * config.wander_strength;
 
         // Smooth steering + clamp to max speed.
-        let new_velocity = (velocity.0 + desired).clamp_length_max(config.max_speed);
+        // Fleeing creatures get a slight speed boost so they can actually escape.
+        let max_speed = if is_fleeing {
+            config.max_speed * 1.15
+        } else {
+            config.max_speed
+        };
+        let new_velocity = (velocity.0 + desired).clamp_length_max(max_speed);
 
         intents.send(BehaviorIntent {
             entity,
             new_velocity,
+            is_fleeing,
         });
     }
 }
 
 /// Apply the intents and the communication events to creature components.
 pub fn apply_behavior(
+    mut commands: Commands,
     mut creatures: Query<(Entity, &mut Velocity, &mut CommunicationBuffer), With<Creature>>,
     mut intents: EventReader<BehaviorIntent>,
     mut comm_events: EventReader<CommunicationEvent>,
 ) {
-    // Clear last tick's messages.
-    for (_, _, mut buffer) in creatures.iter_mut() {
+    // Clear last tick's messages and fleeing state.
+    for (entity, _, mut buffer) in creatures.iter_mut() {
         buffer.last_message = None;
+        commands.entity(entity).remove::<Fleeing>();
     }
 
     // Apply velocities.
     for intent in intents.read() {
-        if let Ok((_, mut velocity, _)) = creatures.get_mut(intent.entity) {
+        if let Ok((entity, mut velocity, _)) = creatures.get_mut(intent.entity) {
             velocity.0 = intent.new_velocity;
+            if intent.is_fleeing {
+                commands.entity(entity).insert(Fleeing);
+            }
         }
     }
 
