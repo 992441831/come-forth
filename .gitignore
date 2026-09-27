@@ -1,0 +1,18 @@
+# Rust build artifacts
+/target/
+
+# Claude local session data
+.claude/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+*.log
