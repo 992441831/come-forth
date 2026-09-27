@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use std::collections::VecDeque;
 
 use crate::components::{ChartUpdateTimer, Creature, Food, PopulationHistory};
+use crate::config::SimConfig;
 
 /// 折线图在屏幕上的尺寸与边距，单位：像素。
 ///
@@ -14,8 +15,17 @@ const CHART_GAP_PX: f32 = 8.0;
 const MAX_SECONDS: usize = 60;
 
 /// 初始化历史数据与采样定时器。
-pub fn setup_history(mut commands: Commands) {
-    commands.insert_resource(PopulationHistory::default());
+///
+/// 为了让折线图一启动就能看到初始配置对应的数量（1500 食物、10000 生物），
+/// 先用配置值预先填充第一个数据点，后续再按每秒一次采样更新。
+pub fn setup_history(mut commands: Commands, config: Res<SimConfig>) {
+    let mut history = PopulationHistory::default();
+    history
+        .creature_counts
+        .push_back(config.creature_count as f32);
+    history.food_counts.push_back(config.food_count as f32);
+
+    commands.insert_resource(history);
     commands.insert_resource(ChartUpdateTimer {
         timer: Timer::from_seconds(1.0, TimerMode::Repeating),
     });
