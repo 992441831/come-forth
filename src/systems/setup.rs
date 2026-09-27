@@ -12,6 +12,11 @@ pub fn setup_camera(mut commands: Commands) {
 pub fn setup_config(mut commands: Commands) {
     commands.insert_resource(SimConfig::default());
     commands.insert_resource(SpatialGrid::default());
+    commands.insert_resource(SimTick::default());
+}
+
+pub fn increment_sim_tick(mut tick: ResMut<SimTick>) {
+    tick.count += 1;
 }
 
 pub fn spawn_initial_creatures(

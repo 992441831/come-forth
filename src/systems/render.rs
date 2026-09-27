@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::components::{CommunicationBuffer, Creature, Energy, Food, Position, Species};
+use crate::components::{CommunicationBuffer, Creature, Energy, Food, Position, SimTick, Species};
 
 pub fn setup_ui(mut commands: Commands) {
     commands.spawn(
@@ -46,13 +46,16 @@ pub fn render_food(
 pub fn update_ui_stats(
     creatures: Query<(), With<Creature>>,
     food: Query<(), With<Food>>,
+    tick: Res<SimTick>,
     mut text_query: Query<&mut Text>,
 ) {
     let creature_count = creatures.iter().count();
     let food_count = food.iter().count();
 
     for mut text in text_query.iter_mut() {
-        text.sections[0].value =
-            format!("Creatures: {creature_count} | Food: {food_count} | WASD pan, wheel zoom");
+        text.sections[0].value = format!(
+            "Tick: {} | Creatures: {} | Food: {} | WASD pan, wheel zoom",
+            tick.count, creature_count, food_count
+        );
     }
 }

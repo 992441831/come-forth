@@ -49,6 +49,7 @@ impl Plugin for SimPlugin {
                 handle_creature_spawns,
                 handle_food_spawns,
                 spawn_food_randomly,
+                increment_sim_tick,
             ).chain())
             .add_systems(Update, (
                 camera_zoom_pan,

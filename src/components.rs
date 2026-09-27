@@ -1,5 +1,14 @@
 use bevy::prelude::*;
 
+/// 模拟 tick 计数器。
+///
+/// 每进行一次 FixedUpdate 逻辑更新，该计数器加 1。
+/// 用于在 UI 上显示模拟已经运行了多少轮。
+#[derive(Resource, Default, Debug, Clone, Copy)]
+pub struct SimTick {
+    pub count: u64,
+}
+
 /// Marker for living creatures.
 #[derive(Component)]
 pub struct Creature;
