@@ -54,7 +54,7 @@ pub fn update_ui_stats(
 
     for mut text in text_query.iter_mut() {
         text.sections[0].value = format!(
-            "Tick: {} | Creatures: {} | Food: {} | WASD pan, wheel zoom",
+            "Tick: {} | Creatures: {} | Food: {} | WASD pan, wheel zoom | Chart: blue=creatures, green=food",
             tick.count, creature_count, food_count
         );
     }

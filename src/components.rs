@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use std::collections::VecDeque;
 
 /// 模拟 tick 计数器。
 ///
@@ -7,6 +8,26 @@ use bevy::prelude::*;
 #[derive(Resource, Default, Debug, Clone, Copy)]
 pub struct SimTick {
     pub count: u64,
+}
+
+/// 生物数量与食物数量的历史数据，用于绘制折线图。
+///
+/// 每个 tick 记录一次原始数值，渲染时按秒采样或聚合。
+/// 默认保留最近 60 秒的数据（配合每秒一次的采样频率）。
+#[derive(Resource, Default, Debug, Clone)]
+pub struct PopulationHistory {
+    /// 每个采样时刻的生物数量。
+    pub creature_counts: VecDeque<f32>,
+    /// 每个采样时刻的食物数量。
+    pub food_counts: VecDeque<f32>,
+}
+
+/// 折线图数据采样定时器。
+///
+/// 控制每隔多久往 PopulationHistory 里写入一个数据点。
+#[derive(Resource, Debug, Clone)]
+pub struct ChartUpdateTimer {
+    pub timer: Timer,
 }
 
 /// Marker for living creatures.

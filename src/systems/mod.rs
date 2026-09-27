@@ -4,6 +4,7 @@ use crate::components::{CommunicationEvent, DeathEvent, SpawnCreature, SpawnFood
 use crate::spatial::update_spatial_grid;
 
 pub mod behavior;
+pub mod charts;
 pub mod food;
 pub mod input;
 pub mod life;
@@ -12,6 +13,7 @@ pub mod render;
 pub mod setup;
 
 use behavior::*;
+use charts::*;
 use food::*;
 use input::*;
 use life::*;
@@ -32,6 +34,7 @@ impl Plugin for SimPlugin {
             .add_systems(Startup, (
                 setup_camera,
                 setup_config,
+                setup_history,
                 spawn_initial_creatures,
                 spawn_initial_food,
                 setup_ui,
@@ -53,8 +56,10 @@ impl Plugin for SimPlugin {
             ).chain())
             .add_systems(Update, (
                 camera_zoom_pan,
+                sample_population,
                 render_creatures,
                 render_food,
+                render_population_chart,
                 update_ui_stats,
             ));
     }
