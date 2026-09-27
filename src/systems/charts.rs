@@ -3,12 +3,14 @@ use std::collections::VecDeque;
 
 use crate::components::{ChartUpdateTimer, Creature, Food, PopulationHistory};
 
-/// 折线图在屏幕上的尺寸与位置配置。
+/// 折线图在屏幕上的尺寸与边距，单位：像素。
 ///
-/// 所有数值单位是世界单位（经正交投影后在屏幕上 1:1 显示）。
-const CHART_WIDTH: f32 = 260.0;
-const CHART_HEIGHT: f32 = 70.0;
-const CHART_MARGIN: f32 = 12.0;
+/// 这些值会在渲染时根据当前相机的缩放比例转换为世界单位，
+/// 从而让折线图在屏幕上保持固定大小和位置，不随滚轮缩放而移动或变形。
+const CHART_WIDTH_PX: f32 = 260.0;
+const CHART_HEIGHT_PX: f32 = 70.0;
+const CHART_MARGIN_PX: f32 = 12.0;
+const CHART_GAP_PX: f32 = 8.0;
 const MAX_SECONDS: usize = 60;
 
 /// 初始化历史数据与采样定时器。
@@ -46,42 +48,63 @@ pub fn sample_population(
     }
 }
 
-/// 在屏幕左上角绘制生物数量与食物数量的折线图。
+/// 在屏幕右上角绘制生物数量与食物数量的折线图。
 ///
 /// 为了避免双 Y 轴（两个量纲差距过大），采用上下两个独立的小折线图：
 /// - 上方：生物数量（蓝色）
 /// - 下方：食物数量（绿色）
 ///
 /// 每个小图使用自己的历史最大值作为上限，从而清晰展示相对波动。
+///
+/// 图表大小和位置以像素为基准，再根据当前相机的 viewport 与投影范围
+/// 换算成世界单位，因此滚轮缩放时图表在屏幕上保持完全静止。
 pub fn render_population_chart(
     mut gizmos: Gizmos,
     history: Res<PopulationHistory>,
     camera_query: Query<(&Camera, &GlobalTransform, &OrthographicProjection)>,
 ) {
-    let Ok((_camera, camera_transform, projection)) = camera_query.get_single() else {
+    let Ok((camera, camera_transform, projection)) = camera_query.get_single() else {
         return;
     };
 
-    // 计算屏幕右上角对应的世界坐标，避免与左上角文字 UI 重叠。
+    let Some(viewport_size) = camera.logical_viewport_size() else {
+        return;
+    };
+
+    // 计算当前每个像素对应多少世界单位。
+    let units_per_pixel = Vec2::new(
+        projection.area.width() / viewport_size.x,
+        projection.area.height() / viewport_size.y,
+    );
+
+    // 计算图表在屏幕上的像素尺寸对应的世界尺寸。
+    let chart_size = Vec2::new(CHART_WIDTH_PX, CHART_HEIGHT_PX) * units_per_pixel;
+    let margin = Vec2::splat(CHART_MARGIN_PX) * units_per_pixel;
+    let gap = Vec2::new(0.0, CHART_GAP_PX) * units_per_pixel;
+
+    // 屏幕右上角在相机本地坐标系中的世界偏移。
+    // projection.area.max 是相机中心到右上角的偏移。
     let camera_pos = camera_transform.translation().xy();
-    let top_left = camera_pos
+    let screen_top_right = camera_pos
         + Vec2::new(
-            projection.area.max.x - CHART_MARGIN - CHART_WIDTH,
-            projection.area.max.y - CHART_MARGIN - CHART_HEIGHT,
+            projection.area.max.x - margin.x - chart_size.x,
+            projection.area.max.y - margin.y - chart_size.y,
         );
 
     draw_mini_chart(
         &mut gizmos,
-        top_left,
+        screen_top_right,
+        chart_size,
         "Creatures",
         Color::srgb(0.35, 0.65, 0.95),
         &history.creature_counts,
     );
 
-    let bottom_left = top_left - Vec2::new(0.0, CHART_HEIGHT + CHART_MARGIN);
+    let bottom_left = screen_top_right - Vec2::new(0.0, chart_size.y + gap.y);
     draw_mini_chart(
         &mut gizmos,
         bottom_left,
+        chart_size,
         "Food",
         Color::srgb(0.35, 0.85, 0.45),
         &history.food_counts,
@@ -91,6 +114,7 @@ pub fn render_population_chart(
 fn draw_mini_chart(
     gizmos: &mut Gizmos,
     bottom_left: Vec2,
+    size: Vec2,
     _label: &str,
     color: Color,
     data: &VecDeque<f32>,
@@ -103,23 +127,23 @@ fn draw_mini_chart(
     let data_len = data.len();
 
     // 绘制半透明背景框。
-    let center = bottom_left + Vec2::new(CHART_WIDTH, CHART_HEIGHT) * 0.5;
-    gizmos.rect_2d(center, 0.0, Vec2::new(CHART_WIDTH, CHART_HEIGHT), Color::srgba(0.0, 0.0, 0.0, 0.35));
+    let center = bottom_left + size * 0.5;
+    gizmos.rect_2d(center, 0.0, size, Color::srgba(0.0, 0.0, 0.0, 0.35));
 
     // 绘制基线。
     gizmos.line_2d(
         bottom_left,
-        bottom_left + Vec2::new(CHART_WIDTH, 0.0),
+        bottom_left + Vec2::new(size.x, 0.0),
         Color::srgba(1.0, 1.0, 1.0, 0.25),
     );
 
     // 绘制数据线。
-    let step_x = CHART_WIDTH / (MAX_SECONDS.saturating_sub(1).max(1) as f32);
+    let step_x = size.x / (MAX_SECONDS.saturating_sub(1).max(1) as f32);
     let mut prev: Option<Vec2> = None;
 
     for (i, &value) in data.iter().enumerate() {
         let x = bottom_left.x + step_x * ((MAX_SECONDS - data_len + i) as f32);
-        let y = bottom_left.y + (value / max_value) * CHART_HEIGHT;
+        let y = bottom_left.y + (value / max_value) * size.y;
         let point = Vec2::new(x, y);
 
         if let Some(p) = prev {
